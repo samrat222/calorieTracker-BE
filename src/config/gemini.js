@@ -23,12 +23,12 @@ const initializeGemini = () => {
   
   // Use gemini-2.5-flash for vision tasks
   model = genAI.getGenerativeModel({ 
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.5-flash-lite',
     generationConfig: {
       temperature: 0.4,
       topK: 32,
       topP: 1,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 800,
     },
   });
 

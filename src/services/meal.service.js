@@ -122,21 +122,21 @@ const getMeals = async (userId, options = {}) => {
     where.mealType = options.mealType;
   }
 
-  // Get total count
-  const total = await prisma.meal.count({ where });
-
-  // Get paginated meals
-  const meals = await prisma.meal.findMany({
-    where,
-    include: {
-      foodItems: true,
-    },
-    orderBy: {
-      mealDate: 'desc',
-    },
-    skip,
-    take: limit,
-  });
+  // Run count and find queries in parallel for better performance
+  const [total, meals] = await Promise.all([
+    prisma.meal.count({ where }),
+    prisma.meal.findMany({
+      where,
+      include: {
+        foodItems: true,
+      },
+      orderBy: {
+        mealDate: 'desc',
+      },
+      skip,
+      take: limit,
+    }),
+  ]);
 
   return {
     meals,
@@ -155,34 +155,49 @@ const getTodaysMeals = async (userId) => {
   const startOfDay = getStartOfToday();
   const endOfDay = getEndOfToday();
 
-  const meals = await prisma.meal.findMany({
-    where: {
-      userId,
-      mealDate: {
-        gte: startOfDay,
-        lte: endOfDay,
+  // Fetch meals and calculate totals in parallel
+  const [meals, aggregation] = await Promise.all([
+    prisma.meal.findMany({
+      where: {
+        userId,
+        mealDate: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
       },
-    },
-    include: {
-      foodItems: true,
-    },
-    orderBy: {
-      mealDate: 'asc',
-    },
-  });
+      include: {
+        foodItems: true,
+      },
+      orderBy: {
+        mealDate: 'asc',
+      },
+    }),
+    prisma.meal.aggregate({
+      where: {
+        userId,
+        mealDate: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      _sum: {
+        totalCalories: true,
+        protein: true,
+        carbs: true,
+        fats: true,
+        fiber: true,
+      },
+    }),
+  ]);
 
-  // Calculate totals
-  const totals = meals.reduce(
-    (acc, meal) => {
-      acc.totalCalories += meal.totalCalories || 0;
-      acc.totalProtein += meal.protein || 0;
-      acc.totalCarbs += meal.carbs || 0;
-      acc.totalFats += meal.fats || 0;
-      acc.totalFiber += meal.fiber || 0;
-      return acc;
-    },
-    { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFats: 0, totalFiber: 0 }
-  );
+  // Use aggregation results instead of calculating in JavaScript
+  const totals = {
+    totalCalories: aggregation._sum.totalCalories || 0,
+    totalProtein: aggregation._sum.protein || 0,
+    totalCarbs: aggregation._sum.carbs || 0,
+    totalFats: aggregation._sum.fats || 0,
+    totalFiber: aggregation._sum.fiber || 0,
+  };
 
   return {
     meals,
@@ -288,8 +303,8 @@ const updateDailySummary = async (userId, date) => {
   const dayEnd = new Date(date);
   dayEnd.setHours(23, 59, 59, 999);
 
-  // Aggregate meals for the day
-  const meals = await prisma.meal.findMany({
+  // Use database aggregation to calculate totals in a single query
+  const aggregation = await prisma.meal.aggregate({
     where: {
       userId,
       mealDate: {
@@ -297,6 +312,13 @@ const updateDailySummary = async (userId, date) => {
         lte: dayEnd,
       },
     },
+    _sum: {
+      totalCalories: true,
+      protein: true,
+      carbs: true,
+      fats: true,
+    },
+    _count: true,
   });
 
   // Get user's calorie goal
@@ -305,16 +327,12 @@ const updateDailySummary = async (userId, date) => {
     select: { dailyCalorieGoal: true },
   });
 
-  const totals = meals.reduce(
-    (acc, meal) => {
-      acc.totalCalories += meal.totalCalories || 0;
-      acc.totalProtein += meal.protein || 0;
-      acc.totalCarbs += meal.carbs || 0;
-      acc.totalFats += meal.fats || 0;
-      return acc;
-    },
-    { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFats: 0 }
-  );
+  const totals = {
+    totalCalories: aggregation._sum.totalCalories || 0,
+    totalProtein: aggregation._sum.protein || 0,
+    totalCarbs: aggregation._sum.carbs || 0,
+    totalFats: aggregation._sum.fats || 0,
+  };
 
   // Upsert daily summary
   return prisma.dailySummary.upsert({
@@ -330,7 +348,7 @@ const updateDailySummary = async (userId, date) => {
       totalCarbs: totals.totalCarbs,
       totalFats: totals.totalFats,
       calorieGoal: user?.dailyCalorieGoal || 2000,
-      mealsCount: meals.length,
+      mealsCount: aggregation._count,
     },
     create: {
       userId,
@@ -340,7 +358,7 @@ const updateDailySummary = async (userId, date) => {
       totalCarbs: totals.totalCarbs,
       totalFats: totals.totalFats,
       calorieGoal: user?.dailyCalorieGoal || 2000,
-      mealsCount: meals.length,
+      mealsCount: aggregation._count,
     },
   });
 };
@@ -355,21 +373,21 @@ const getDailyAnalytics = async (userId, date = new Date()) => {
   const dayStart = new Date(date);
   dayStart.setHours(0, 0, 0, 0);
 
-  // Get user's goal
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { dailyCalorieGoal: true },
-  });
-
-  // Get daily summary
-  const summary = await prisma.dailySummary.findUnique({
-    where: {
-      userId_date: {
-        userId,
-        date: dayStart,
+  // Get both user goal and daily summary in parallel to reduce round trips
+  const [user, summary] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { dailyCalorieGoal: true },
+    }),
+    prisma.dailySummary.findUnique({
+      where: {
+        userId_date: {
+          userId,
+          date: dayStart,
+        },
       },
-    },
-  });
+    }),
+  ]);
 
   const calorieGoal = user?.dailyCalorieGoal || 2000;
   const consumed = summary?.totalCalories || 0;
@@ -400,7 +418,28 @@ const getWeeklyAnalytics = async (userId) => {
   const startOfWeek = getStartOfWeek();
   const endOfWeek = getEndOfWeek();
 
-  const summaries = await prisma.dailySummary.findMany({
+  // Fetch summaries and user goal in parallel to reduce total query time
+  const [summaries, user] = await Promise.all([
+    prisma.dailySummary.findMany({
+      where: {
+        userId,
+        date: {
+          gte: startOfWeek,
+          lte: endOfWeek,
+        },
+      },
+      orderBy: {
+        date: 'asc',
+      },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { dailyCalorieGoal: true },
+    }),
+  ]);
+
+  // Use database aggregation instead of reducing in code
+  const aggregation = await prisma.dailySummary.aggregate({
     where: {
       userId,
       date: {
@@ -408,28 +447,22 @@ const getWeeklyAnalytics = async (userId) => {
         lte: endOfWeek,
       },
     },
-    orderBy: {
-      date: 'asc',
+    _sum: {
+      totalCalories: true,
+      totalProtein: true,
+      totalCarbs: true,
+      totalFats: true,
+      mealsCount: true,
     },
   });
 
-  // Get user's goal
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { dailyCalorieGoal: true },
-  });
-
-  const weeklyTotals = summaries.reduce(
-    (acc, day) => {
-      acc.totalCalories += day.totalCalories;
-      acc.totalProtein += day.totalProtein;
-      acc.totalCarbs += day.totalCarbs;
-      acc.totalFats += day.totalFats;
-      acc.mealsCount += day.mealsCount;
-      return acc;
-    },
-    { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFats: 0, mealsCount: 0 }
-  );
+  const weeklyTotals = {
+    totalCalories: aggregation._sum.totalCalories || 0,
+    totalProtein: aggregation._sum.totalProtein || 0,
+    totalCarbs: aggregation._sum.totalCarbs || 0,
+    totalFats: aggregation._sum.totalFats || 0,
+    mealsCount: aggregation._sum.mealsCount || 0,
+  };
 
   const daysTracked = summaries.length;
   const avgCalories = daysTracked > 0 ? Math.round(weeklyTotals.totalCalories / daysTracked) : 0;
@@ -439,22 +472,28 @@ const getWeeklyAnalytics = async (userId) => {
     endDate: endOfWeek,
     dailyCalorieGoal: user?.dailyCalorieGoal || 2000,
     averageCalories: avgCalories,
-    totals: weeklyTotals,
-    daysTracked,
-    dailyBreakdown: summaries,
-  };
-};
+  // Fetch summaries and user goal in parallel
+  const [summaries, user] = await Promise.all([
+    prisma.dailySummary.findMany({
+      where: {
+        userId,
+        date: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+      },
+      orderBy: {
+        date: 'asc',
+      },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { dailyCalorieGoal: true },
+    }),
+  ]);
 
-/**
- * Get monthly analytics for a user
- * @param {string} userId - User ID
- * @returns {Promise<Object>} - Monthly analytics
- */
-const getMonthlyAnalytics = async (userId) => {
-  const startOfMonth = getStartOfMonth();
-  const endOfMonth = getEndOfMonth();
-
-  const summaries = await prisma.dailySummary.findMany({
+  // Use database aggregation for monthly totals
+  const aggregation = await prisma.dailySummary.aggregate({
     where: {
       userId,
       date: {
@@ -462,18 +501,27 @@ const getMonthlyAnalytics = async (userId) => {
         lte: endOfMonth,
       },
     },
-    orderBy: {
-      date: 'asc',
+    _sum: {
+      totalCalories: true,
+      totalProtein: true,
+      totalCarbs: true,
+      totalFats: true,
+      mealsCount: true,
     },
   });
 
-  // Get user's goal
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { dailyCalorieGoal: true },
-  });
+  const monthlyTotals = {
+    totalCalories: aggregation._sum.totalCalories || 0,
+    totalProtein: aggregation._sum.totalProtein || 0,
+    totalCarbs: aggregation._sum.totalCarbs || 0,
+    totalFats: aggregation._sum.totalFats || 0,
+    mealsCount: aggregation._sum.mealsCount || 0,
+  };
 
-  const monthlyTotals = summaries.reduce(
+  const daysTracked = summaries.length;
+  const avgCalories = daysTracked > 0 ? Math.round(monthlyTotals.totalCalories / daysTracked) : 0;
+
+  // Calculate weekly averages for trend using in-memory data (already fetched)(
     (acc, day) => {
       acc.totalCalories += day.totalCalories;
       acc.totalProtein += day.totalProtein;

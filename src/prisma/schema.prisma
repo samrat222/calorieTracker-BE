@@ -96,4 +96,6 @@ model DailySummary {
 
   @@unique([userId, date])
   @@index([userId, date])
+  @@index([userId])
+  @@index([date])
 }

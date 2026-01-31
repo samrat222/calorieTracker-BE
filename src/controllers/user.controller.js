@@ -3,11 +3,18 @@
  * Handles user profile management and onboarding
  */
 
-const { prisma } = require('../config/database');
-const { calculateHealthMetrics } = require('../services/bmi.service');
-const { successResponse, errorResponse, HTTP_STATUS } = require('../utils/responses');
-const { ERROR_CODES, ACTIVITY_LEVEL_DESCRIPTIONS } = require('../utils/constants');
-const { asyncHandler } = require('../middlewares/error.middleware');
+const { prisma } = require("../config/database");
+const { calculateHealthMetrics } = require("../services/bmi.service");
+const {
+  successResponse,
+  errorResponse,
+  HTTP_STATUS,
+} = require("../utils/responses");
+const {
+  ERROR_CODES,
+  ACTIVITY_LEVEL_DESCRIPTIONS,
+} = require("../utils/constants");
+const { asyncHandler } = require("../middlewares/error.middleware");
 
 /**
  * Get user profile
@@ -38,19 +45,19 @@ const getProfile = asyncHandler(async (req, res) => {
   if (!user) {
     return errorResponse(res, {
       statusCode: HTTP_STATUS.NOT_FOUND.code,
-      message: 'User not found',
+      message: "User not found",
       code: ERROR_CODES.NOT_FOUND,
     });
   }
 
   // Add activity level description
   const activityLevelDescription = user.activityLevel
-    ? ACTIVITY_LEVEL_DESCRIPTIONS[user.activityLevel] || 'Unknown'
+    ? ACTIVITY_LEVEL_DESCRIPTIONS[user.activityLevel] || "Unknown"
     : null;
 
   return successResponse(res, {
     statusCode: HTTP_STATUS.OK.code,
-    message: 'Profile retrieved successfully',
+    message: "Profile retrieved successfully",
     data: {
       ...user,
       activityLevelDescription,
@@ -74,7 +81,7 @@ const updateProfile = asyncHandler(async (req, res) => {
   if (!currentUser) {
     return errorResponse(res, {
       statusCode: HTTP_STATUS.NOT_FOUND.code,
-      message: 'User not found',
+      message: "User not found",
       code: ERROR_CODES.NOT_FOUND,
     });
   }
@@ -95,7 +102,13 @@ const updateProfile = asyncHandler(async (req, res) => {
   const finalGender = gender ?? currentUser.gender;
   const finalActivityLevel = activityLevel ?? currentUser.activityLevel;
 
-  if (finalWeight && finalHeight && finalAge && finalGender && finalActivityLevel) {
+  if (
+    finalWeight &&
+    finalHeight &&
+    finalAge &&
+    finalGender &&
+    finalActivityLevel
+  ) {
     const metrics = calculateHealthMetrics({
       weight: finalWeight,
       height: finalHeight,
@@ -130,12 +143,12 @@ const updateProfile = asyncHandler(async (req, res) => {
 
   // Add activity level description
   const activityLevelDescription = updatedUser.activityLevel
-    ? ACTIVITY_LEVEL_DESCRIPTIONS[updatedUser.activityLevel] || 'Unknown'
+    ? ACTIVITY_LEVEL_DESCRIPTIONS[updatedUser.activityLevel] || "Unknown"
     : null;
 
   return successResponse(res, {
     statusCode: HTTP_STATUS.OK.code,
-    message: 'Profile updated successfully',
+    message: "Profile updated successfully",
     data: {
       ...updatedUser,
       activityLevelDescription,
@@ -151,15 +164,17 @@ const completeOnboarding = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const { name, age, weight, height, gender, activityLevel } = req.body;
 
-  // Check if already onboarded
+  // Check if already onboarded - only fetch the field we need
   const currentUser = await prisma.user.findUnique({
     where: { id: userId },
+    select: { isOnboarded: true },
   });
 
   if (currentUser?.isOnboarded) {
     return errorResponse(res, {
       statusCode: HTTP_STATUS.BAD_REQUEST.code,
-      message: 'User has already completed onboarding. Use profile update instead.',
+      message:
+        "User has already completed onboarding. Use profile update instead.",
     });
   }
 
@@ -204,11 +219,12 @@ const completeOnboarding = asyncHandler(async (req, res) => {
   });
 
   // Build response with calculated data
-  const activityLevelDescription = ACTIVITY_LEVEL_DESCRIPTIONS[activityLevel] || 'Unknown';
+  const activityLevelDescription =
+    ACTIVITY_LEVEL_DESCRIPTIONS[activityLevel] || "Unknown";
 
   return successResponse(res, {
     statusCode: HTTP_STATUS.OK.code,
-    message: 'Onboarding completed successfully',
+    message: "Onboarding completed successfully",
     data: {
       user: {
         ...updatedUser,
@@ -231,34 +247,32 @@ const completeOnboarding = asyncHandler(async (req, res) => {
 const getUserStats = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
-  // Get total meals count
-  const totalMeals = await prisma.meal.count({
-    where: { userId },
-  });
-
-  // Get days tracked (unique dates)
-  const uniqueDays = await prisma.dailySummary.count({
-    where: { userId },
-  });
-
-  // Get user data
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      dailyCalorieGoal: true,
-      bmi: true,
-      createdAt: true,
-    },
-  });
+  // Run all stats queries in parallel for better performance
+  const [totalMeals, uniqueDays, user] = await Promise.all([
+    prisma.meal.count({
+      where: { userId },
+    }),
+    prisma.dailySummary.count({
+      where: { userId },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        dailyCalorieGoal: true,
+        bmi: true,
+        createdAt: true,
+      },
+    }),
+  ]);
 
   // Calculate member since (days)
   const memberSinceDays = Math.floor(
-    (Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+    (Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24),
   );
 
   return successResponse(res, {
     statusCode: HTTP_STATUS.OK.code,
-    message: 'User statistics retrieved successfully',
+    message: "User statistics retrieved successfully",
     data: {
       totalMeals,
       daysTracked: uniqueDays,
