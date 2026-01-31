@@ -23,8 +23,8 @@ const startServer = async () => {
     // Connect to database
     await connectDatabase();
 
-    // Start listening
-    const server = app.listen(PORT, () => {
+    // Start listening on all interfaces (required for Render deployment)
+    const server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`
 ╔═══════════════════════════════════════════════════════╗
 ║                                                       ║
