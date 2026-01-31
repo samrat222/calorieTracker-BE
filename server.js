@@ -4,10 +4,13 @@
  */
 
 // Load environment variables first
-require('dotenv').config();
+require("dotenv").config();
 
-const app = require('./src/app');
-const { connectDatabase, disconnectDatabase } = require('./src/config/database');
+const app = require("./src/app");
+const {
+  connectDatabase,
+  disconnectDatabase,
+} = require("./src/config/database");
 
 // Get port from environment
 const PORT = process.env.PORT || 5000;
@@ -28,7 +31,7 @@ const startServer = async () => {
 ║   🥗  Calorie Tracker API Server                      ║
 ║                                                       ║
 ║   🚀 Server running on port ${PORT}                     ║
-║   📊 Environment: ${process.env.NODE_ENV || 'development'}                    ║
+║   📊 Environment: ${process.env.NODE_ENV || "development"}                    ║
 ║   🔗 Health check: http://localhost:${PORT}/api/health  ║
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
@@ -37,6 +40,7 @@ const startServer = async () => {
 
     // ============================================
     // Graceful Shutdown Handling
+    // testing
     // ============================================
 
     const gracefulShutdown = async (signal) => {
@@ -44,43 +48,42 @@ const startServer = async () => {
 
       // Stop accepting new connections
       server.close(async () => {
-        console.log('HTTP server closed.');
+        console.log("HTTP server closed.");
 
         try {
           // Disconnect from database
           await disconnectDatabase();
-          console.log('Graceful shutdown completed.');
+          console.log("Graceful shutdown completed.");
           process.exit(0);
         } catch (error) {
-          console.error('Error during graceful shutdown:', error);
+          console.error("Error during graceful shutdown:", error);
           process.exit(1);
         }
       });
 
       // Force close after 30 seconds
       setTimeout(() => {
-        console.error('Forced shutdown due to timeout.');
+        console.error("Forced shutdown due to timeout.");
         process.exit(1);
       }, 30000);
     };
 
     // Listen for termination signals
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+    process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
     // Handle uncaught exceptions
-    process.on('uncaughtException', (error) => {
-      console.error('Uncaught Exception:', error);
-      gracefulShutdown('UNCAUGHT_EXCEPTION');
+    process.on("uncaughtException", (error) => {
+      console.error("Uncaught Exception:", error);
+      gracefulShutdown("UNCAUGHT_EXCEPTION");
     });
 
     // Handle unhandled promise rejections
-    process.on('unhandledRejection', (reason, promise) => {
-      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    process.on("unhandledRejection", (reason, promise) => {
+      console.error("Unhandled Rejection at:", promise, "reason:", reason);
     });
-
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error("Failed to start server:", error);
     process.exit(1);
   }
 };
