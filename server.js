@@ -6,6 +6,10 @@
 // Load environment variables first
 require("dotenv").config();
 
+// 🔥 FORCE IPv4 FIRST (Fix EAI_AGAIN DNS issue)
+const dns = require("dns");
+dns.setDefaultResultOrder("ipv4first");
+
 const app = require("./src/app");
 const {
   connectDatabase,
@@ -20,10 +24,8 @@ const PORT = process.env.PORT || 5000;
  */
 const startServer = async () => {
   try {
-    // Connect to database
     await connectDatabase();
 
-    // Start listening on all interfaces (required for Render deployment)
     const server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`
 ╔═══════════════════════════════════════════════════════╗
@@ -38,20 +40,13 @@ const startServer = async () => {
       `);
     });
 
-    // ============================================
-    // Graceful Shutdown Handling
-    // testing
-    // ============================================
-
     const gracefulShutdown = async (signal) => {
       console.log(`\n${signal} received. Starting graceful shutdown...`);
 
-      // Stop accepting new connections
       server.close(async () => {
         console.log("HTTP server closed.");
 
         try {
-          // Disconnect from database
           await disconnectDatabase();
           console.log("Graceful shutdown completed.");
           process.exit(0);
@@ -61,32 +56,28 @@ const startServer = async () => {
         }
       });
 
-      // Force close after 30 seconds
       setTimeout(() => {
         console.error("Forced shutdown due to timeout.");
         process.exit(1);
       }, 30000);
     };
 
-    // Listen for termination signals
     process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
     process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
-    // Handle uncaught exceptions
     process.on("uncaughtException", (error) => {
       console.error("Uncaught Exception:", error);
       gracefulShutdown("UNCAUGHT_EXCEPTION");
     });
 
-    // Handle unhandled promise rejections
     process.on("unhandledRejection", (reason, promise) => {
       console.error("Unhandled Rejection at:", promise, "reason:", reason);
     });
+
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);
   }
 };
 
-// Start the server
 startServer();

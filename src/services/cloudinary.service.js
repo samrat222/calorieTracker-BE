@@ -31,9 +31,11 @@ const uploadImage = async (buffer, options = {}) => {
       resource_type: 'image',
       // Optimize images for mobile
       transformation: [
-        { quality: 'auto:good' },
-        { fetch_format: 'auto' },
-      ],
+        { width: 800, crop: 'limit' },   // resize down if larger
+        { quality: 40 },                 // aggressive compression
+        { fetch_format: 'auto' },        // webp/avif when possible
+      ]
+
     };
 
     if (options.publicId) {
@@ -83,9 +85,11 @@ const uploadFromPath = async (filePath, options = {}) => {
       folder,
       resource_type: 'image',
       transformation: [
-        { quality: 'auto:good' },
-        { fetch_format: 'auto' },
-      ],
+        { width: 800, crop: 'limit' },   // resize down if larger
+        { quality: 40 },                 // aggressive compression
+        { fetch_format: 'auto' },        // webp/avif when possible
+      ]
+
     });
 
     return {
@@ -172,9 +176,11 @@ const getThumbnailUrl = (publicId, options = {}) => {
 
   return cloudinary.url(publicId, {
     transformation: [
-      { width, height, crop: 'fill', gravity: 'auto' },
-      { quality: 'auto', fetch_format: 'auto' },
-    ],
+      { width: 800, crop: 'limit' },   
+      { quality: 40 },                
+      { fetch_format: 'auto' },     
+    ]
+
   });
 };
 

@@ -221,7 +221,6 @@ const analyzeFood = asyncHandler(async (req, res) => {
   const fileInfo = getFileInfo(req);
   const { description } = req.body;
 
-  // Either image or description is required
   if (!fileInfo && !description) {
     return errorResponse(res, {
       statusCode: HTTP_STATUS.BAD_REQUEST.code,
@@ -234,18 +233,26 @@ const analyzeFood = asyncHandler(async (req, res) => {
 
   try {
     if (fileInfo) {
-      // First upload image to Cloudinary
-      const uploadResult = await cloudinaryService.uploadImage(fileInfo.buffer);
+      // 1️⃣ Analyze FIRST using buffer
+      analysisResult = await geminiService.analyzeImage(
+        fileInfo.buffer,
+        fileInfo.mimetype
+      );
+
+      // 2️⃣ Then upload image to Cloudinary
+      const uploadResult = await cloudinaryService.uploadImage(
+        fileInfo.buffer
+      );
       imageUrl = uploadResult.url;
 
-      // Then analyze using the Cloudinary URL
-      analysisResult = await geminiService.analyzeImage(imageUrl);
     } else {
-      // Analyze text description
+      // Analyze text
       analysisResult = await geminiService.analyzeTextDescription(description);
     }
+
   } catch (error) {
     console.error("Food analysis error:", error);
+
     return errorResponse(res, {
       statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR.code,
       message: "Failed to analyze food. Please try again.",
@@ -269,6 +276,7 @@ const analyzeFood = asyncHandler(async (req, res) => {
     },
   });
 });
+
 
 /**
  * Quick log meal from analysis result

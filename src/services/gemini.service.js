@@ -1,15 +1,17 @@
 /**
  * Google Gemini Service
- * Handles food image analysis using Gemini Vision API
+ * Handles food image and text analysis using Gemini Vision API
  */
 
 const { getModel, isConfigured } = require("../config/gemini");
 
 /**
- * The prompt to send to Gemini for food analysis
- * Designed to return structured JSON data
+ * Prompt for food image analysis
  */
-const FOOD_ANALYSIS_PROMPT = `Analyze this food image and identify all food items visible. For each food item, provide:
+const FOOD_ANALYSIS_PROMPT = `
+Analyze this food image and identify all food items visible.
+
+For each food item provide:
 1. Food name
 2. Estimated quantity and unit (grams, ml, pieces, etc.)
 3. Estimated nutritional values:
@@ -17,9 +19,10 @@ const FOOD_ANALYSIS_PROMPT = `Analyze this food image and identify all food item
    - Protein (grams)
    - Carbohydrates (grams)
    - Fats (grams)
-   - Fiber (grams) - if applicable
+   - Fiber (grams, if applicable)
 
-Return the response in the following JSON format ONLY (no additional text):
+Return ONLY valid JSON in this exact structure:
+
 {
   "success": true,
   "foodItems": [
@@ -44,98 +47,89 @@ Return the response in the following JSON format ONLY (no additional text):
   "mealDescription": "Brief description of the meal"
 }
 
-If you cannot identify the food or the image is not food-related, return:
+If not food-related:
+
 {
   "success": false,
   "error": "Could not identify food in the image",
   "foodItems": [],
   "totalNutrition": null
 }
-
-Be as accurate as possible with nutritional estimates. Use standard portion sizes when quantity is unclear.`;
+`;
 
 /**
- * Analyze a food image using Gemini Vision API
- * @param {Buffer|string} imageSource - Image data as buffer or Cloudinary URL
- * @param {string} mimeType - MIME type of the image (e.g., 'image/jpeg') - only used for buffers
- * @returns {Promise<Object>} - Analysis result with food items and nutrition data
+ * Utility: Safely extract JSON from LLM output
  */
-const analyzeImage = async (imageSource, mimeType = "image/jpeg") => {
+const extractJson = (text) => {
+  let cleaned = text.trim();
+
+  // Remove markdown code fences
+  if (cleaned.startsWith("```json")) cleaned = cleaned.slice(7);
+  if (cleaned.startsWith("```")) cleaned = cleaned.slice(3);
+  if (cleaned.endsWith("```")) cleaned = cleaned.slice(0, -3);
+
+  cleaned = cleaned.trim();
+
+  return JSON.parse(cleaned);
+};
+
+/**
+ * Analyze food image using Gemini
+ * STRICT: Accepts buffer only
+ */
+const analyzeImage = async (imageBuffer, mimeType = "image/jpeg") => {
   if (!isConfigured()) {
-    throw new Error(
-      "Gemini API is not configured. Please set GEMINI_API_KEY environment variable.",
-    );
+    throw new Error("Gemini API is not configured.");
+  }
+
+  if (!Buffer.isBuffer(imageBuffer)) {
+    throw new Error("analyzeImage requires an image buffer.");
   }
 
   const model = getModel();
   if (!model) {
-    throw new Error("Failed to initialize Gemini model");
+    throw new Error("Failed to initialize Gemini model.");
   }
 
   try {
-    let imagePart;
+    const base64Image = imageBuffer.toString("base64");
 
-    // Check if imageSource is a URL (Cloudinary) or buffer
-    if (typeof imageSource === "string") {
-      // URL-based image (e.g., Cloudinary)
-      imagePart = {
-        url: imageSource,
-      };
-    } else {
-      // Buffer-based image (fallback for local processing)
-      const base64Image = imageSource.toString("base64");
-      imagePart = {
-        inlineData: {
-          data: base64Image,
-          mimeType: mimeType,
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: FOOD_ANALYSIS_PROMPT },
+            {
+              inlineData: {
+                mimeType,
+                data: base64Image,
+              },
+            },
+          ],
         },
-      };
-    }
+      ],
+    });
 
-    // Send request to Gemini
-    const result = await model.generateContent([
-      FOOD_ANALYSIS_PROMPT,
-      imagePart,
-    ]);
     const response = await result.response;
     const text = response.text();
 
-    // Parse the JSON response
-    // Remove any markdown code blocks if present
-    let jsonText = text.trim();
-    if (jsonText.startsWith("```json")) {
-      jsonText = jsonText.slice(7);
-    }
-    if (jsonText.startsWith("```")) {
-      jsonText = jsonText.slice(3);
-    }
-    if (jsonText.endsWith("```")) {
-      jsonText = jsonText.slice(0, -3);
-    }
-    jsonText = jsonText.trim();
-
-    const analysisResult = JSON.parse(jsonText);
-
-    // Validate the response structure
-    if (!analysisResult || typeof analysisResult !== "object") {
-      throw new Error("Invalid response format from Gemini");
-    }
+    const parsed = extractJson(text);
 
     return {
-      success: analysisResult.success !== false,
-      foodItems: analysisResult.foodItems || [],
-      totalNutrition: analysisResult.totalNutrition || null,
-      mealDescription: analysisResult.mealDescription || "",
-      error: analysisResult.error || null,
+      success: parsed.success !== false,
+      foodItems: parsed.foodItems || [],
+      totalNutrition: parsed.totalNutrition || null,
+      mealDescription: parsed.mealDescription || "",
+      error: parsed.error || null,
     };
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("Gemini Image Analysis Error:", error);
 
-    // Handle JSON parsing errors
     if (error instanceof SyntaxError) {
       return {
         success: false,
-        error: "Failed to parse nutrition data from image analysis",
+        error: "Failed to parse nutrition data from Gemini response.",
         foodItems: [],
         totalNutrition: null,
       };
@@ -146,34 +140,38 @@ const analyzeImage = async (imageSource, mimeType = "image/jpeg") => {
 };
 
 /**
- * Analyze food from text description using Gemini
- * @param {string} description - Text description of the food
- * @returns {Promise<Object>} - Analysis result with nutrition estimates
+ * Analyze food based on text description
  */
 const analyzeTextDescription = async (description) => {
   if (!isConfigured()) {
-    throw new Error(
-      "Gemini API is not configured. Please set GEMINI_API_KEY environment variable.",
-    );
+    throw new Error("Gemini API is not configured.");
   }
 
   const model = getModel();
   if (!model) {
-    throw new Error("Failed to initialize Gemini model");
+    throw new Error("Failed to initialize Gemini model.");
   }
 
-  const textPrompt = `Based on this food description, estimate the nutritional values:
+  const prompt = `
+Based on this food description:
 
 "${description}"
 
-Return the response in the following JSON format ONLY (no additional text):
+Estimate nutritional values and return ONLY valid JSON in this exact structure:
+
+Instructions:
+1. Identify all food items and their quantities from the description.
+2. If a quantity is specified (e.g., "2 eggs", "200g chicken"), calculate nutrition for that specific amount.
+3. If no quantity is specified, assume a standard serving size.
+4. Sum up all items for totalNutrition.
+
 {
   "success": true,
   "foodItems": [
     {
       "foodName": "item name",
       "quantity": 100,
-      "unit": "grams",
+      "unit": "grams", // or "large", "cup", etc.
       "calories": 150,
       "protein": 5.5,
       "carbs": 20.0,
@@ -192,39 +190,36 @@ Return the response in the following JSON format ONLY (no additional text):
 }
 
 If the description is not food-related or too vague, return:
+
 {
   "success": false,
   "error": "Could not estimate nutrition for this description",
   "foodItems": [],
   "totalNutrition": null
-}`;
+}
+`;
 
   try {
-    const result = await model.generateContent(textPrompt);
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt }],
+        },
+      ],
+    });
+
     const response = await result.response;
     const text = response.text();
 
-    // Parse JSON response
-    let jsonText = text.trim();
-    if (jsonText.startsWith("```json")) {
-      jsonText = jsonText.slice(7);
-    }
-    if (jsonText.startsWith("```")) {
-      jsonText = jsonText.slice(3);
-    }
-    if (jsonText.endsWith("```")) {
-      jsonText = jsonText.slice(0, -3);
-    }
-    jsonText = jsonText.trim();
-
-    const analysisResult = JSON.parse(jsonText);
+    const parsed = extractJson(text);
 
     return {
-      success: analysisResult.success !== false,
-      foodItems: analysisResult.foodItems || [],
-      totalNutrition: analysisResult.totalNutrition || null,
-      mealDescription: analysisResult.mealDescription || description,
-      error: analysisResult.error || null,
+      success: parsed.success !== false,
+      foodItems: parsed.foodItems || [],
+      totalNutrition: parsed.totalNutrition || null,
+      mealDescription: parsed.mealDescription || description,
+      error: parsed.error || null,
     };
   } catch (error) {
     console.error("Gemini Text Analysis Error:", error);
@@ -232,7 +227,7 @@ If the description is not food-related or too vague, return:
     if (error instanceof SyntaxError) {
       return {
         success: false,
-        error: "Failed to parse nutrition data",
+        error: "Failed to parse nutrition data.",
         foodItems: [],
         totalNutrition: null,
       };
