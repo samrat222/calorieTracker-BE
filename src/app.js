@@ -14,12 +14,15 @@ const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const mealRoutes = require('./routes/meal.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
+const notificationRoutes = require('./routes/notification.routes');
 
 // Import error handlers
 const { notFoundHandler, errorHandler } = require('./middlewares/error.middleware');
 
 // Import configs
 const { initializeGemini } = require('./config/gemini');
+const { initializeFirebase } = require('./config/firebase');
+const { initializeScheduler } = require('./services/scheduler.service');
 
 // Create Express app
 const app = express();
@@ -102,6 +105,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/meals', mealRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ============================================
 // Root Route
@@ -132,5 +136,11 @@ app.use(errorHandler);
 
 // Initialize Gemini API
 initializeGemini();
+
+// Initialize Firebase Admin
+initializeFirebase();
+
+// Initialize Scheduler
+initializeScheduler();
 
 module.exports = app;

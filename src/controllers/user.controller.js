@@ -15,6 +15,7 @@ const {
   ACTIVITY_LEVEL_DESCRIPTIONS,
 } = require("../utils/constants");
 const { asyncHandler } = require("../middlewares/error.middleware");
+const notificationService = require("../services/notification.service");
 
 /**
  * Get user profile
@@ -283,9 +284,54 @@ const getUserStats = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Update user's FCM token for push notifications
+ * PATCH /api/users/fcm-token
+ */
+const updateFcmToken = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const { fcmToken, isLogin } = req.body;
+
+  if (!fcmToken) {
+    return errorResponse(res, {
+      statusCode: HTTP_STATUS.BAD_REQUEST.code,
+      message: "FCM token is required",
+      code: ERROR_CODES.VALIDATION_ERROR,
+    });
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { fcmToken },
+  });
+
+  // Only send a greeting notification if explicitly requested (on login/onboarding)
+  if (isLogin) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+
+    const userName = user?.name || "there";
+
+    notificationService.createAndSendNotification({
+      userId,
+      title: `Welcome back, ${userName}! 👋`,
+      body: "Ready to track your calories and crush your goals today?",
+      type: "LOGIN_GREETING",
+    }).catch(err => console.error("Error sending greeting notification:", err));
+  }
+
+  return successResponse(res, {
+    statusCode: HTTP_STATUS.OK.code,
+    message: isLogin ? "FCM token updated and greeting sent" : "FCM token updated successfully",
+  });
+});
+
 module.exports = {
   getProfile,
   updateProfile,
   completeOnboarding,
   getUserStats,
+  updateFcmToken,
 };

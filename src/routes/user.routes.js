@@ -54,4 +54,11 @@ router.get(
   userController.getUserStats
 );
 
+/**
+ * @route   PATCH /api/users/fcm-token
+ * @desc    Update user's FCM token for push notifications
+ * @access  Private
+ */
+router.patch('/fcm-token', authenticate, userController.updateFcmToken);
+
 module.exports = router;

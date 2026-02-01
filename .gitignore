@@ -39,3 +39,6 @@ coverage/
 # Miscellaneous
 *.tmp
 *.temp
+
+# Secrets
+firebase-service-account.json

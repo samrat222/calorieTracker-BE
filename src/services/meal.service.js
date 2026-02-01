@@ -13,6 +13,7 @@ const {
   getEndOfMonth,
   PAGINATION,
 } = require("../utils/constants");
+const notificationService = require("./notification.service");
 
 /**
  * Create a new meal entry
@@ -79,6 +80,14 @@ const createMeal = async (mealData) => {
 
   // Update daily summary after creating meal
   await updateDailySummary(userId, mealDate || new Date());
+
+  // Trigger notification
+  await notificationService.createAndSendNotification({
+    userId,
+    title: 'Meal Logged 🥗',
+    body: `Your ${mealType} has been successfully logged. Keep it up!`,
+    type: 'MEAL_LOGGED',
+  });
 
   return meal;
 };
