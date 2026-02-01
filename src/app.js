@@ -106,6 +106,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/meals', mealRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/notification', notificationRoutes);
 
 // ============================================
 // Root Route

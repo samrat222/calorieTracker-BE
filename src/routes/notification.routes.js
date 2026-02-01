@@ -25,6 +25,7 @@ router.post('/', notificationController.createNotification);
  * @access  Private
  */
 router.get('/', notificationController.getNotifications);
+router.get('/user/:type', notificationController.getNotificationsByType);
 
 /**
  * @route   PATCH /api/notifications/read-all
@@ -32,6 +33,7 @@ router.get('/', notificationController.getNotifications);
  * @access  Private
  */
 router.patch('/read-all', notificationController.markAllAsRead);
+router.post('/user/mark-read', notificationController.markMultipleRead);
 
 /**
  * @route   PATCH /api/notifications/:id/read
