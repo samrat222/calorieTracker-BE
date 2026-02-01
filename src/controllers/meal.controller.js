@@ -3,13 +3,18 @@
  * Handles meal CRUD operations and image analysis
  */
 
-const mealService = require('../services/meal.service');
-const geminiService = require('../services/gemini.service');
-const cloudinaryService = require('../services/cloudinary.service');
-const { getFileInfo } = require('../middlewares/upload.middleware');
-const { successResponse, errorResponse, paginatedResponse, HTTP_STATUS } = require('../utils/responses');
-const { ERROR_CODES } = require('../utils/constants');
-const { asyncHandler } = require('../middlewares/error.middleware');
+const mealService = require("../services/meal.service");
+const geminiService = require("../services/gemini.service");
+const cloudinaryService = require("../services/cloudinary.service");
+const { getFileInfo } = require("../middlewares/upload.middleware");
+const {
+  successResponse,
+  errorResponse,
+  paginatedResponse,
+  HTTP_STATUS,
+} = require("../utils/responses");
+const { ERROR_CODES } = require("../utils/constants");
+const { asyncHandler } = require("../middlewares/error.middleware");
 
 /**
  * Create a new meal
@@ -17,7 +22,17 @@ const { asyncHandler } = require('../middlewares/error.middleware');
  */
 const createMeal = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const { mealType, description, totalCalories, protein, carbs, fats, fiber, mealDate, foodItems } = req.body;
+  const {
+    mealType,
+    description,
+    totalCalories,
+    protein,
+    carbs,
+    fats,
+    fiber,
+    mealDate,
+    foodItems,
+  } = req.body;
 
   // Handle image upload if present
   let imageUrl = null;
@@ -28,7 +43,7 @@ const createMeal = asyncHandler(async (req, res) => {
       const uploadResult = await cloudinaryService.uploadImage(fileInfo.buffer);
       imageUrl = uploadResult.url;
     } catch (error) {
-      console.error('Image upload failed:', error);
+      console.error("Image upload failed:", error);
       // Continue without image - not a critical failure
     }
   }
@@ -50,7 +65,7 @@ const createMeal = asyncHandler(async (req, res) => {
 
   return successResponse(res, {
     statusCode: HTTP_STATUS.CREATED.code,
-    message: 'Meal created successfully',
+    message: "Meal created successfully",
     data: { meal },
   });
 });
@@ -76,7 +91,7 @@ const getMeals = asyncHandler(async (req, res) => {
     page: result.page,
     limit: result.limit,
     total: result.total,
-    message: 'Meals retrieved successfully',
+    message: "Meals retrieved successfully",
   });
 });
 
@@ -93,14 +108,14 @@ const getMealById = asyncHandler(async (req, res) => {
   if (!meal) {
     return errorResponse(res, {
       statusCode: HTTP_STATUS.NOT_FOUND.code,
-      message: 'Meal not found',
+      message: "Meal not found",
       code: ERROR_CODES.NOT_FOUND,
     });
   }
 
   return successResponse(res, {
     statusCode: HTTP_STATUS.OK.code,
-    message: 'Meal retrieved successfully',
+    message: "Meal retrieved successfully",
     data: { meal },
   });
 });
@@ -137,7 +152,7 @@ const updateMeal = asyncHandler(async (req, res) => {
       const uploadResult = await cloudinaryService.uploadImage(fileInfo.buffer);
       updateData.imageUrl = uploadResult.url;
     } catch (error) {
-      console.error('Image upload failed:', error);
+      console.error("Image upload failed:", error);
     }
   }
 
@@ -146,14 +161,14 @@ const updateMeal = asyncHandler(async (req, res) => {
   if (!meal) {
     return errorResponse(res, {
       statusCode: HTTP_STATUS.NOT_FOUND.code,
-      message: 'Meal not found or you do not have permission to update it',
+      message: "Meal not found or you do not have permission to update it",
       code: ERROR_CODES.NOT_FOUND,
     });
   }
 
   return successResponse(res, {
     statusCode: HTTP_STATUS.OK.code,
-    message: 'Meal updated successfully',
+    message: "Meal updated successfully",
     data: { meal },
   });
 });
@@ -172,7 +187,7 @@ const deleteMeal = asyncHandler(async (req, res) => {
   if (!existingMeal) {
     return errorResponse(res, {
       statusCode: HTTP_STATUS.NOT_FOUND.code,
-      message: 'Meal not found or you do not have permission to delete it',
+      message: "Meal not found or you do not have permission to delete it",
       code: ERROR_CODES.NOT_FOUND,
     });
   }
@@ -182,17 +197,19 @@ const deleteMeal = asyncHandler(async (req, res) => {
 
   // Try to delete image from Cloudinary (non-blocking)
   if (existingMeal.imageUrl) {
-    const publicId = cloudinaryService.extractPublicIdFromUrl(existingMeal.imageUrl);
+    const publicId = cloudinaryService.extractPublicIdFromUrl(
+      existingMeal.imageUrl,
+    );
     if (publicId) {
       cloudinaryService.deleteImage(publicId).catch((err) => {
-        console.error('Failed to delete image from Cloudinary:', err);
+        console.error("Failed to delete image from Cloudinary:", err);
       });
     }
   }
 
   return successResponse(res, {
     statusCode: HTTP_STATUS.OK.code,
-    message: 'Meal deleted successfully',
+    message: "Meal deleted successfully",
   });
 });
 
@@ -208,25 +225,30 @@ const analyzeFood = asyncHandler(async (req, res) => {
   if (!fileInfo && !description) {
     return errorResponse(res, {
       statusCode: HTTP_STATUS.BAD_REQUEST.code,
-      message: 'Either an image or text description is required',
+      message: "Either an image or text description is required",
     });
   }
 
   let analysisResult;
+  let imageUrl = null;
 
   try {
     if (fileInfo) {
-      // Analyze image
-      analysisResult = await geminiService.analyzeImage(fileInfo.buffer, fileInfo.mimetype);
+      // First upload image to Cloudinary
+      const uploadResult = await cloudinaryService.uploadImage(fileInfo.buffer);
+      imageUrl = uploadResult.url;
+
+      // Then analyze using the Cloudinary URL
+      analysisResult = await geminiService.analyzeImage(imageUrl);
     } else {
       // Analyze text description
       analysisResult = await geminiService.analyzeTextDescription(description);
     }
   } catch (error) {
-    console.error('Food analysis error:', error);
+    console.error("Food analysis error:", error);
     return errorResponse(res, {
       statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR.code,
-      message: 'Failed to analyze food. Please try again.',
+      message: "Failed to analyze food. Please try again.",
       code: ERROR_CODES.GEMINI_API_ERROR,
     });
   }
@@ -234,24 +256,13 @@ const analyzeFood = asyncHandler(async (req, res) => {
   if (!analysisResult.success) {
     return errorResponse(res, {
       statusCode: HTTP_STATUS.BAD_REQUEST.code,
-      message: analysisResult.error || 'Could not analyze the food',
+      message: analysisResult.error || "Could not analyze the food",
     });
-  }
-
-  // If image was provided, optionally upload it
-  let imageUrl = null;
-  if (fileInfo) {
-    try {
-      const uploadResult = await cloudinaryService.uploadImage(fileInfo.buffer);
-      imageUrl = uploadResult.url;
-    } catch (error) {
-      console.error('Image upload during analysis failed:', error);
-    }
   }
 
   return successResponse(res, {
     statusCode: HTTP_STATUS.OK.code,
-    message: 'Food analyzed successfully',
+    message: "Food analyzed successfully",
     data: {
       ...analysisResult,
       imageUrl,
@@ -267,10 +278,14 @@ const quickLogMeal = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const { mealType, imageUrl, analysisResult } = req.body;
 
-  if (!analysisResult || !analysisResult.foodItems || !analysisResult.totalNutrition) {
+  if (
+    !analysisResult ||
+    !analysisResult.foodItems ||
+    !analysisResult.totalNutrition
+  ) {
     return errorResponse(res, {
       statusCode: HTTP_STATUS.BAD_REQUEST.code,
-      message: 'Invalid analysis result. Please analyze food first.',
+      message: "Invalid analysis result. Please analyze food first.",
     });
   }
 
@@ -280,7 +295,7 @@ const quickLogMeal = asyncHandler(async (req, res) => {
   const meal = await mealService.createMeal({
     userId,
     mealType,
-    description: mealDescription || 'Quick logged meal',
+    description: mealDescription || "Quick logged meal",
     imageUrl,
     totalCalories: totalNutrition.calories || 0,
     protein: totalNutrition.protein,
@@ -301,7 +316,7 @@ const quickLogMeal = asyncHandler(async (req, res) => {
 
   return successResponse(res, {
     statusCode: HTTP_STATUS.CREATED.code,
-    message: 'Meal logged successfully',
+    message: "Meal logged successfully",
     data: { meal },
   });
 });

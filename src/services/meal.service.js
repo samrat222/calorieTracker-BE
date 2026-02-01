@@ -3,7 +3,7 @@
  * Business logic for meal CRUD operations and analytics
  */
 
-const { prisma } = require('../config/database');
+const { prisma } = require("../config/database");
 const {
   getStartOfToday,
   getEndOfToday,
@@ -12,7 +12,7 @@ const {
   getStartOfMonth,
   getEndOfMonth,
   PAGINATION,
-} = require('../utils/constants');
+} = require("../utils/constants");
 
 /**
  * Create a new meal entry
@@ -31,7 +31,19 @@ const {
  * @returns {Promise<Object>} - Created meal
  */
 const createMeal = async (mealData) => {
-  const { userId, mealType, description, imageUrl, totalCalories, protein, carbs, fats, fiber, mealDate, foodItems } = mealData;
+  const {
+    userId,
+    mealType,
+    description,
+    imageUrl,
+    totalCalories,
+    protein,
+    carbs,
+    fats,
+    fiber,
+    mealDate,
+    foodItems,
+  } = mealData;
 
   const meal = await prisma.meal.create({
     data: {
@@ -45,17 +57,20 @@ const createMeal = async (mealData) => {
       fats,
       fiber,
       mealDate: mealDate || new Date(),
-      foodItems: foodItems && foodItems.length > 0 ? {
-        create: foodItems.map((item) => ({
-          foodName: item.foodName,
-          quantity: item.quantity,
-          unit: item.unit,
-          calories: item.calories,
-          protein: item.protein,
-          carbs: item.carbs,
-          fats: item.fats,
-        })),
-      } : undefined,
+      foodItems:
+        foodItems && foodItems.length > 0
+          ? {
+              create: foodItems.map((item) => ({
+                foodName: item.foodName,
+                quantity: item.quantity,
+                unit: item.unit,
+                calories: item.calories,
+                protein: item.protein,
+                carbs: item.carbs,
+                fats: item.fats,
+              })),
+            }
+          : undefined,
     },
     include: {
       foodItems: true,
@@ -101,7 +116,7 @@ const getMeals = async (userId, options = {}) => {
   const page = Math.max(1, options.page || PAGINATION.DEFAULT_PAGE);
   const limit = Math.min(
     Math.max(1, options.limit || PAGINATION.DEFAULT_LIMIT),
-    PAGINATION.MAX_LIMIT
+    PAGINATION.MAX_LIMIT,
   );
   const skip = (page - 1) * limit;
 
@@ -131,7 +146,7 @@ const getMeals = async (userId, options = {}) => {
         foodItems: true,
       },
       orderBy: {
-        mealDate: 'desc',
+        mealDate: "desc",
       },
       skip,
       take: limit,
@@ -169,7 +184,7 @@ const getTodaysMeals = async (userId) => {
         foodItems: true,
       },
       orderBy: {
-        mealDate: 'asc',
+        mealDate: "asc",
       },
     }),
     prisma.meal.aggregate({
@@ -429,7 +444,7 @@ const getWeeklyAnalytics = async (userId) => {
         },
       },
       orderBy: {
-        date: 'asc',
+        date: "asc",
       },
     }),
     prisma.user.findUnique({
@@ -465,7 +480,8 @@ const getWeeklyAnalytics = async (userId) => {
   };
 
   const daysTracked = summaries.length;
-  const avgCalories = daysTracked > 0 ? Math.round(weeklyTotals.totalCalories / daysTracked) : 0;
+  const avgCalories =
+    daysTracked > 0 ? Math.round(weeklyTotals.totalCalories / daysTracked) : 0;
 
   return {
     startDate: startOfWeek,
@@ -498,7 +514,7 @@ const getMonthlyAnalytics = async (userId) => {
         },
       },
       orderBy: {
-        date: 'asc',
+        date: "asc",
       },
     }),
     prisma.user.findUnique({
@@ -534,7 +550,8 @@ const getMonthlyAnalytics = async (userId) => {
   };
 
   const daysTracked = summaries.length;
-  const avgCalories = daysTracked > 0 ? Math.round(monthlyTotals.totalCalories / daysTracked) : 0;
+  const avgCalories =
+    daysTracked > 0 ? Math.round(monthlyTotals.totalCalories / daysTracked) : 0;
 
   // Calculate weekly averages for trend using in-memory data (already fetched)
   const weeklyData = [];
@@ -545,9 +562,12 @@ const getMonthlyAnalytics = async (userId) => {
     weekEnd.setDate(weekEnd.getDate() + 6);
 
     const weekSummaries = summaries.filter(
-      (s) => s.date >= weekStart && s.date <= weekEnd
+      (s) => s.date >= weekStart && s.date <= weekEnd,
     );
-    const weekCalories = weekSummaries.reduce((sum, s) => sum + s.totalCalories, 0);
+    const weekCalories = weekSummaries.reduce(
+      (sum, s) => sum + s.totalCalories,
+      0,
+    );
     const weekDays = weekSummaries.length;
 
     weeklyData.push({

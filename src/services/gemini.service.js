@@ -3,7 +3,7 @@
  * Handles food image analysis using Gemini Vision API
  */
 
-const { getModel, isConfigured } = require('../config/gemini');
+const { getModel, isConfigured } = require("../config/gemini");
 
 /**
  * The prompt to send to Gemini for food analysis
@@ -56,47 +56,60 @@ Be as accurate as possible with nutritional estimates. Use standard portion size
 
 /**
  * Analyze a food image using Gemini Vision API
- * @param {Buffer} imageBuffer - Image data as buffer
- * @param {string} mimeType - MIME type of the image (e.g., 'image/jpeg')
+ * @param {Buffer|string} imageSource - Image data as buffer or Cloudinary URL
+ * @param {string} mimeType - MIME type of the image (e.g., 'image/jpeg') - only used for buffers
  * @returns {Promise<Object>} - Analysis result with food items and nutrition data
  */
-const analyzeImage = async (imageBuffer, mimeType = 'image/jpeg') => {
+const analyzeImage = async (imageSource, mimeType = "image/jpeg") => {
   if (!isConfigured()) {
-    throw new Error('Gemini API is not configured. Please set GEMINI_API_KEY environment variable.');
+    throw new Error(
+      "Gemini API is not configured. Please set GEMINI_API_KEY environment variable.",
+    );
   }
 
   const model = getModel();
   if (!model) {
-    throw new Error('Failed to initialize Gemini model');
+    throw new Error("Failed to initialize Gemini model");
   }
 
   try {
-    // Convert buffer to base64
-    const base64Image = imageBuffer.toString('base64');
+    let imagePart;
 
-    // Prepare the image part for Gemini
-    const imagePart = {
-      inlineData: {
-        data: base64Image,
-        mimeType: mimeType,
-      },
-    };
+    // Check if imageSource is a URL (Cloudinary) or buffer
+    if (typeof imageSource === "string") {
+      // URL-based image (e.g., Cloudinary)
+      imagePart = {
+        url: imageSource,
+      };
+    } else {
+      // Buffer-based image (fallback for local processing)
+      const base64Image = imageSource.toString("base64");
+      imagePart = {
+        inlineData: {
+          data: base64Image,
+          mimeType: mimeType,
+        },
+      };
+    }
 
     // Send request to Gemini
-    const result = await model.generateContent([FOOD_ANALYSIS_PROMPT, imagePart]);
+    const result = await model.generateContent([
+      FOOD_ANALYSIS_PROMPT,
+      imagePart,
+    ]);
     const response = await result.response;
     const text = response.text();
 
     // Parse the JSON response
     // Remove any markdown code blocks if present
     let jsonText = text.trim();
-    if (jsonText.startsWith('```json')) {
+    if (jsonText.startsWith("```json")) {
       jsonText = jsonText.slice(7);
     }
-    if (jsonText.startsWith('```')) {
+    if (jsonText.startsWith("```")) {
       jsonText = jsonText.slice(3);
     }
-    if (jsonText.endsWith('```')) {
+    if (jsonText.endsWith("```")) {
       jsonText = jsonText.slice(0, -3);
     }
     jsonText = jsonText.trim();
@@ -104,25 +117,25 @@ const analyzeImage = async (imageBuffer, mimeType = 'image/jpeg') => {
     const analysisResult = JSON.parse(jsonText);
 
     // Validate the response structure
-    if (!analysisResult || typeof analysisResult !== 'object') {
-      throw new Error('Invalid response format from Gemini');
+    if (!analysisResult || typeof analysisResult !== "object") {
+      throw new Error("Invalid response format from Gemini");
     }
 
     return {
       success: analysisResult.success !== false,
       foodItems: analysisResult.foodItems || [],
       totalNutrition: analysisResult.totalNutrition || null,
-      mealDescription: analysisResult.mealDescription || '',
+      mealDescription: analysisResult.mealDescription || "",
       error: analysisResult.error || null,
     };
   } catch (error) {
-    console.error('Gemini API Error:', error);
+    console.error("Gemini API Error:", error);
 
     // Handle JSON parsing errors
     if (error instanceof SyntaxError) {
       return {
         success: false,
-        error: 'Failed to parse nutrition data from image analysis',
+        error: "Failed to parse nutrition data from image analysis",
         foodItems: [],
         totalNutrition: null,
       };
@@ -139,12 +152,14 @@ const analyzeImage = async (imageBuffer, mimeType = 'image/jpeg') => {
  */
 const analyzeTextDescription = async (description) => {
   if (!isConfigured()) {
-    throw new Error('Gemini API is not configured. Please set GEMINI_API_KEY environment variable.');
+    throw new Error(
+      "Gemini API is not configured. Please set GEMINI_API_KEY environment variable.",
+    );
   }
 
   const model = getModel();
   if (!model) {
-    throw new Error('Failed to initialize Gemini model');
+    throw new Error("Failed to initialize Gemini model");
   }
 
   const textPrompt = `Based on this food description, estimate the nutritional values:
@@ -191,13 +206,13 @@ If the description is not food-related or too vague, return:
 
     // Parse JSON response
     let jsonText = text.trim();
-    if (jsonText.startsWith('```json')) {
+    if (jsonText.startsWith("```json")) {
       jsonText = jsonText.slice(7);
     }
-    if (jsonText.startsWith('```')) {
+    if (jsonText.startsWith("```")) {
       jsonText = jsonText.slice(3);
     }
-    if (jsonText.endsWith('```')) {
+    if (jsonText.endsWith("```")) {
       jsonText = jsonText.slice(0, -3);
     }
     jsonText = jsonText.trim();
@@ -212,12 +227,12 @@ If the description is not food-related or too vague, return:
       error: analysisResult.error || null,
     };
   } catch (error) {
-    console.error('Gemini Text Analysis Error:', error);
+    console.error("Gemini Text Analysis Error:", error);
 
     if (error instanceof SyntaxError) {
       return {
         success: false,
-        error: 'Failed to parse nutrition data',
+        error: "Failed to parse nutrition data",
         foodItems: [],
         totalNutrition: null,
       };
