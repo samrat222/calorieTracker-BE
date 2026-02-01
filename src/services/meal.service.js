@@ -472,6 +472,21 @@ const getWeeklyAnalytics = async (userId) => {
     endDate: endOfWeek,
     dailyCalorieGoal: user?.dailyCalorieGoal || 2000,
     averageCalories: avgCalories,
+    totals: weeklyTotals,
+    daysTracked,
+    dailyBreakdown: summaries,
+  };
+};
+
+/**
+ * Get monthly analytics for a user
+ * @param {string} userId - User ID
+ * @returns {Promise<Object>} - Monthly analytics
+ */
+const getMonthlyAnalytics = async (userId) => {
+  const startOfMonth = getStartOfMonth();
+  const endOfMonth = getEndOfMonth();
+
   // Fetch summaries and user goal in parallel
   const [summaries, user] = await Promise.all([
     prisma.dailySummary.findMany({
@@ -521,22 +536,7 @@ const getWeeklyAnalytics = async (userId) => {
   const daysTracked = summaries.length;
   const avgCalories = daysTracked > 0 ? Math.round(monthlyTotals.totalCalories / daysTracked) : 0;
 
-  // Calculate weekly averages for trend using in-memory data (already fetched)(
-    (acc, day) => {
-      acc.totalCalories += day.totalCalories;
-      acc.totalProtein += day.totalProtein;
-      acc.totalCarbs += day.totalCarbs;
-      acc.totalFats += day.totalFats;
-      acc.mealsCount += day.mealsCount;
-      return acc;
-    },
-    { totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFats: 0, mealsCount: 0 }
-  );
-
-  const daysTracked = summaries.length;
-  const avgCalories = daysTracked > 0 ? Math.round(monthlyTotals.totalCalories / daysTracked) : 0;
-
-  // Calculate weekly averages for trend
+  // Calculate weekly averages for trend using in-memory data (already fetched)
   const weeklyData = [];
   for (let i = 0; i < 4; i++) {
     const weekStart = new Date(startOfMonth);
