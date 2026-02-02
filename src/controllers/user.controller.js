@@ -35,6 +35,7 @@ const getProfile = asyncHandler(async (req, res) => {
       height: true,
       gender: true,
       activityLevel: true,
+      goal: true,
       bmi: true,
       dailyCalorieGoal: true,
       isOnboarded: true,
@@ -72,7 +73,7 @@ const getProfile = asyncHandler(async (req, res) => {
  */
 const updateProfile = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const { name, age, weight, height, gender, activityLevel } = req.body;
+  const { name, age, weight, height, gender, activityLevel, goal } = req.body;
 
   // Get current user data
   const currentUser = await prisma.user.findUnique({
@@ -95,6 +96,7 @@ const updateProfile = asyncHandler(async (req, res) => {
   if (height !== undefined) updateData.height = height;
   if (gender !== undefined) updateData.gender = gender;
   if (activityLevel !== undefined) updateData.activityLevel = activityLevel;
+  if (goal !== undefined) updateData.goal = goal;
 
   // Recalculate health metrics if any relevant field changed
   const finalWeight = weight ?? currentUser.weight;
@@ -102,6 +104,7 @@ const updateProfile = asyncHandler(async (req, res) => {
   const finalAge = age ?? currentUser.age;
   const finalGender = gender ?? currentUser.gender;
   const finalActivityLevel = activityLevel ?? currentUser.activityLevel;
+  const finalGoal = goal ?? currentUser.goal;
 
   if (
     finalWeight &&
@@ -116,6 +119,7 @@ const updateProfile = asyncHandler(async (req, res) => {
       age: finalAge,
       gender: finalGender,
       activityLevel: finalActivityLevel,
+      goal: finalGoal,
     });
 
     updateData.bmi = metrics.bmi;
@@ -135,6 +139,7 @@ const updateProfile = asyncHandler(async (req, res) => {
       height: true,
       gender: true,
       activityLevel: true,
+      goal: true,
       bmi: true,
       dailyCalorieGoal: true,
       isOnboarded: true,
@@ -163,7 +168,7 @@ const updateProfile = asyncHandler(async (req, res) => {
  */
 const completeOnboarding = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const { name, age, weight, height, gender, activityLevel } = req.body;
+  const { name, age, weight, height, gender, activityLevel, goal } = req.body;
 
   // Check if already onboarded - only fetch the field we need
   const currentUser = await prisma.user.findUnique({
@@ -186,6 +191,7 @@ const completeOnboarding = asyncHandler(async (req, res) => {
     age,
     gender,
     activityLevel,
+    goal,
   });
 
   // Update user with onboarding data
@@ -198,6 +204,7 @@ const completeOnboarding = asyncHandler(async (req, res) => {
       height,
       gender,
       activityLevel,
+      goal,
       bmi: metrics.bmi,
       dailyCalorieGoal: metrics.dailyCalorieGoal,
       isOnboarded: true,
@@ -211,6 +218,7 @@ const completeOnboarding = asyncHandler(async (req, res) => {
       height: true,
       gender: true,
       activityLevel: true,
+      goal: true,
       bmi: true,
       dailyCalorieGoal: true,
       isOnboarded: true,

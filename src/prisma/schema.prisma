@@ -21,6 +21,7 @@ model User {
   height           Float?   // in cm
   gender           String?  // 'male' or 'female'
   activityLevel    Float?   // 1.2, 1.375, 1.55, 1.725, 1.9
+  goal             String?  // 'lose', 'gain', 'maintain'
   bmi              Float?
   dailyCalorieGoal Int?
   isOnboarded      Boolean  @default(false)

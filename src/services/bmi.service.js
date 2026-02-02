@@ -89,14 +89,23 @@ const calculateBMR = (weight, height, age, gender) => {
  * 
  * @param {number} bmr - Basal Metabolic Rate
  * @param {number} activityLevel - Activity level multiplier
+ * @param {string} goal - Fitness goal ('lose', 'gain', 'maintain')
  * @returns {number} - Daily calorie goal
  */
-const calculateDailyCalorieGoal = (bmr, activityLevel) => {
+const calculateDailyCalorieGoal = (bmr, activityLevel, goal = "maintain") => {
   if (!bmr || !activityLevel || bmr <= 0 || activityLevel <= 0) {
     return null;
   }
 
-  const dailyCalories = bmr * activityLevel;
+  let dailyCalories = bmr * activityLevel;
+
+  // Adjust based on goal
+  if (goal === "lose") {
+    dailyCalories -= 400;
+  } else if (goal === "gain") {
+    dailyCalories += 500;
+  }
+
   return Math.round(dailyCalories);
 };
 
@@ -108,13 +117,21 @@ const calculateDailyCalorieGoal = (bmr, activityLevel) => {
  * @param {number} userData.age - Age in years
  * @param {string} userData.gender - 'male' or 'female'
  * @param {number} userData.activityLevel - Activity level multiplier
+ * @param {string} userData.goal - Fitness goal ('lose', 'gain', 'maintain')
  * @returns {Object} - Calculated metrics
  */
-const calculateHealthMetrics = ({ weight, height, age, gender, activityLevel }) => {
+const calculateHealthMetrics = ({
+  weight,
+  height,
+  age,
+  gender,
+  activityLevel,
+  goal,
+}) => {
   const bmi = calculateBMI(weight, height);
   const bmiCategory = getBMICategory(bmi);
   const bmr = calculateBMR(weight, height, age, gender);
-  const dailyCalorieGoal = calculateDailyCalorieGoal(bmr, activityLevel);
+  const dailyCalorieGoal = calculateDailyCalorieGoal(bmr, activityLevel, goal);
 
   return {
     bmi,

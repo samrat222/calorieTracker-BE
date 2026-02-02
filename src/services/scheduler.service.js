@@ -37,6 +37,13 @@ const initializeScheduler = () => {
     console.log('[CRON] Running 9:30 PM Dinner status reminder');
     await sendCalorieReminders('DINNER');
   });
+
+  // 5. 12:57 AM - Test reminder
+  // cron.schedule('58 0 * * *', async () => {
+  //   console.log('[CRON] Running 12:57 AM Test reminder');
+  //   await sendCalorieReminders('TEST');
+  // });
+  
 };
 
 /**

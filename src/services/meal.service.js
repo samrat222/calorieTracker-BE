@@ -248,6 +248,9 @@ const updateMeal = async (mealId, userId, updateData) => {
   const { foodItems, ...mealData } = updateData;
 
   // Start a transaction
+  console.log(`Starting transaction for meal update: ${mealId}`);
+  const startTime = Date.now();
+  
   const updatedMeal = await prisma.$transaction(async (tx) => {
     // Update the meal
     const meal = await tx.meal.update({
@@ -284,7 +287,12 @@ const updateMeal = async (mealId, userId, updateData) => {
       where: { id: mealId },
       include: { foodItems: true },
     });
+  }, {
+    timeout: 20000, // 20 seconds
+    maxWait: 5000,  // 5 seconds
   });
+
+  console.log(`Transaction completed in ${Date.now() - startTime}ms`);
 
   // Update daily summary
   await updateDailySummary(userId, existingMeal.mealDate);

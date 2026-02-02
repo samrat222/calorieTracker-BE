@@ -68,6 +68,9 @@ const onboardingSchema = z.object({
       (val) => Object.values(ACTIVITY_LEVELS).includes(val),
       'Invalid activity level. Must be one of: 1.2, 1.375, 1.55, 1.725, 1.9'
     ),
+  goal: z.enum(['lose', 'gain', 'maintain'], {
+    errorMap: () => ({ message: 'Goal must be either lose, gain or maintain' }),
+  }),
 });
 
 const updateProfileSchema = z.object({
@@ -106,6 +109,9 @@ const updateProfileSchema = z.object({
       'Invalid activity level'
     )
     .optional(),
+  goal: z.enum(['lose', 'gain', 'maintain'], {
+    errorMap: () => ({ message: 'Goal must be either lose, gain or maintain' }),
+  }).optional(),
 });
 
 // ============================================
@@ -119,25 +125,30 @@ const createMealSchema = z.object({
     }),
   }),
   description: z.string().max(500, 'Description must be less than 500 characters').optional(),
-  totalCalories: z.number().int().min(0, 'Calories must be non-negative'),
-  protein: z.number().min(0, 'Protein must be non-negative').optional(),
-  carbs: z.number().min(0, 'Carbs must be non-negative').optional(),
-  fats: z.number().min(0, 'Fats must be non-negative').optional(),
-  fiber: z.number().min(0, 'Fiber must be non-negative').optional(),
-  mealDate: z.string().datetime().or(z.date()).optional(),
-  foodItems: z
+  totalCalories: z.coerce.number().int().min(0, 'Calories must be non-negative'),
+  protein: z.coerce.number().min(0, 'Protein must be non-negative').optional(),
+  carbs: z.coerce.number().min(0, 'Carbs must be non-negative').optional(),
+  fats: z.coerce.number().min(0, 'Fats must be non-negative').optional(),
+  fiber: z.coerce.number().min(0, 'Fiber must be non-negative').optional(),
+  mealDate: z.coerce.date().optional(),
+  foodItems: z.preprocess((val) => {
+    if (typeof val === 'string') {
+      try { return JSON.parse(val); } catch (e) { return val; }
+    }
+    return val;
+  }, z
     .array(
       z.object({
         foodName: z.string().min(1, 'Food name is required').max(200),
-        quantity: z.number().positive('Quantity must be positive'),
+        quantity: z.coerce.number().positive('Quantity must be positive'),
         unit: z.string().min(1, 'Unit is required').max(50),
-        calories: z.number().int().min(0),
-        protein: z.number().min(0).optional(),
-        carbs: z.number().min(0).optional(),
-        fats: z.number().min(0).optional(),
+        calories: z.coerce.number().int().min(0),
+        protein: z.coerce.number().min(0).optional(),
+        carbs: z.coerce.number().min(0).optional(),
+        fats: z.coerce.number().min(0).optional(),
       })
     )
-    .optional(),
+    .optional()),
 });
 
 const updateMealSchema = z.object({
@@ -149,26 +160,31 @@ const updateMealSchema = z.object({
     })
     .optional(),
   description: z.string().max(500, 'Description must be less than 500 characters').optional(),
-  totalCalories: z.number().int().min(0, 'Calories must be non-negative').optional(),
-  protein: z.number().min(0, 'Protein must be non-negative').optional(),
-  carbs: z.number().min(0, 'Carbs must be non-negative').optional(),
-  fats: z.number().min(0, 'Fats must be non-negative').optional(),
-  fiber: z.number().min(0, 'Fiber must be non-negative').optional(),
-  mealDate: z.string().datetime().or(z.date()).optional(),
-  foodItems: z
+  totalCalories: z.coerce.number().int().min(0, 'Calories must be non-negative').optional(),
+  protein: z.coerce.number().min(0, 'Protein must be non-negative').optional(),
+  carbs: z.coerce.number().min(0, 'Carbs must be non-negative').optional(),
+  fats: z.coerce.number().min(0, 'Fats must be non-negative').optional(),
+  fiber: z.coerce.number().min(0, 'Fiber must be non-negative').optional(),
+  mealDate: z.coerce.date().optional(),
+  foodItems: z.preprocess((val) => {
+    if (typeof val === 'string') {
+      try { return JSON.parse(val); } catch (e) { return val; }
+    }
+    return val;
+  }, z
     .array(
       z.object({
         id: z.string().uuid().optional(), // For updating existing items
         foodName: z.string().min(1, 'Food name is required').max(200),
-        quantity: z.number().positive('Quantity must be positive'),
+        quantity: z.coerce.number().positive('Quantity must be positive'),
         unit: z.string().min(1, 'Unit is required').max(50),
-        calories: z.number().int().min(0),
-        protein: z.number().min(0).optional(),
-        carbs: z.number().min(0).optional(),
-        fats: z.number().min(0).optional(),
+        calories: z.coerce.number().int().min(0),
+        protein: z.coerce.number().min(0).optional(),
+        carbs: z.coerce.number().min(0).optional(),
+        fats: z.coerce.number().min(0).optional(),
       })
     )
-    .optional(),
+    .optional()),
 });
 
 // ============================================
