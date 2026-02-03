@@ -10,7 +10,26 @@ require("dotenv").config();
 const dns = require("dns");
 dns.setDefaultResultOrder("ipv4first");
 
+const https = require("https");
 const app = require("./src/app");
+
+// ============================================
+// Self-Ping Configuration (Prevent Render Cooling)
+// ============================================
+const SELF_PING_INTERVAL = 10 * 60 * 1000; // Ping every 10 minutes (below Render's 15-minute idle timeout)
+const SERVER_URL = process.env.SERVER_URL || "https://calorietracker-be.onrender.com";
+
+// Self-ping function to keep the server awake
+function keepServerAwake() {
+  console.log(`Pinging self at ${SERVER_URL}/ping to prevent cooling period...`);
+  https
+    .get(`${SERVER_URL}/ping`, (res) => {
+      console.log(`Self-ping response status: ${res.statusCode} ${res.statusMessage}`);
+    })
+    .on("error", (err) => {
+      console.error(`Error during self-ping: ${err.message}`);
+    });
+}
 const {
   connectDatabase,
   disconnectDatabase,
@@ -38,6 +57,12 @@ const startServer = async () => {
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
       `);
+
+      // Start self-pinging loop to prevent Render cooling period
+      setInterval(keepServerAwake, SELF_PING_INTERVAL);
+      
+      // Perform initial ping after starting the server
+      keepServerAwake();
     });
 
     const gracefulShutdown = async (signal) => {

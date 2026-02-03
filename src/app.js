@@ -98,6 +98,16 @@ app.get('/api/health', (req, res) => {
 });
 
 // ============================================
+// Ping Endpoint (Prevent Render Cooling Period)
+// ============================================
+
+app.get('/ping', (req, res) => {
+  console.log('Ping received at /ping');
+  res.set('Cache-Control', 'no-store'); // Disable caching for the response
+  res.json({ message: 'pong', timestamp: new Date().toISOString() });
+});
+
+// ============================================
 // API Routes
 // ============================================
 
