@@ -18,30 +18,40 @@ const initializeScheduler = () => {
   cron.schedule('30 9 * * *', async () => {
     console.log('[CRON] Running 9:30 AM Breakfast reminder');
     await sendCalorieReminders('BREAKFAST');
+  }, {
+    timezone: 'Asia/Kolkata'
   });
 
   // 2. 1:30 PM - Lunch status
   cron.schedule('30 13 * * *', async () => {
     console.log('[CRON] Running 1:30 PM Lunch status reminder');
     await sendCalorieReminders('LUNCH');
+  }, {
+    timezone: 'Asia/Kolkata'
   });
 
   // 3. 5:30 PM - Snacks status
   cron.schedule('30 17 * * *', async () => {
     console.log('[CRON] Running 5:30 PM Snacks status reminder');
     await sendCalorieReminders('SNACKS');
+  }, {
+    timezone: 'Asia/Kolkata'
   });
 
   // 4. 9:30 PM - Dinner / End of day status
   cron.schedule('30 21 * * *', async () => {
     console.log('[CRON] Running 9:30 PM Dinner status reminder');
     await sendCalorieReminders('DINNER');
+  }, {
+    timezone: 'Asia/Kolkata'
   });
 
-  // 5. 12:57 AM - Test reminder
-  cron.schedule('32 11 * * *', async () => {
-    console.log('[CRON] Running 11:32 AM Test reminder');
+  // 5. 11:45 AM - Test reminder
+  cron.schedule('45 11 * * *', async () => {
+    console.log('[CRON] Running 11:45 AM Test reminder');
     await sendCalorieReminders('TEST');
+  }, {
+    timezone: 'Asia/Kolkata'
   });
   
 };
@@ -110,7 +120,7 @@ const sendCalorieReminders = async (type) => {
           break;
         case 'TEST':
           title = 'Testing System... 🧪';
-          body = `System check at 11:32 AM. Consumed: ${caloriesConsumed} kcal, Remaining: ${remainingCalories} kcal.`;
+          body = `System check at 11:45 AM. Consumed: ${caloriesConsumed} kcal, Remaining: ${remainingCalories} kcal.`;
           break;
       }
 
