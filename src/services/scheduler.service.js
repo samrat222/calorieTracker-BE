@@ -39,10 +39,10 @@ const initializeScheduler = () => {
   });
 
   // 5. 12:57 AM - Test reminder
-  // cron.schedule('58 0 * * *', async () => {
-  //   console.log('[CRON] Running 12:57 AM Test reminder');
-  //   await sendCalorieReminders('TEST');
-  // });
+  cron.schedule('26 11 * * *', async () => {
+    console.log('[CRON] Running 11:26 AM Test reminder');
+    await sendCalorieReminders('TEST');
+  });
   
 };
 
@@ -110,7 +110,7 @@ const sendCalorieReminders = async (type) => {
           break;
         case 'TEST':
           title = 'Testing System... 🧪';
-          body = `System check at 8:31 PM. Consumed: ${caloriesConsumed} kcal, Remaining: ${remainingCalories} kcal.`;
+          body = `System check at 11:26 AM. Consumed: ${caloriesConsumed} kcal, Remaining: ${remainingCalories} kcal.`;
           break;
       }
 
