@@ -16,12 +16,14 @@ const { createMealSchema, updateMealSchema, idParamSchema } = require('../utils/
 router.use(authenticate);
 router.use(requireOnboarding);
 
+router.get('/today', mealController.getTodaysMeals);
+
 /**
- * @route   GET /api/meals/today
- * @desc    Get today's meals for the authenticated user
+ * @route   GET /api/meals/previous
+ * @desc    Get unique previous meals for the authenticated user
  * @access  Private
  */
-router.get('/today', mealController.getTodaysMeals);
+router.get('/previous', mealController.getPreviousMeals);
 
 /**
  * @route   POST /api/meals/analyze

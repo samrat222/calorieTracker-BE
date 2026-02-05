@@ -606,10 +606,56 @@ const getMonthlyAnalytics = async (userId) => {
   };
 };
 
+/**
+ * Get unique previous meals for a user
+ * @param {string} userId - User ID
+ * @param {number} [limit=50] - Number of meals to fetch
+ * @returns {Promise<Array>} - List of unique previous meals
+ */
+const getPreviousMeals = async (userId, limit = 50) => {
+  const meals = await prisma.meal.findMany({
+    where: { userId },
+    include: {
+      foodItems: true,
+    },
+    orderBy: {
+      mealDate: "desc",
+    },
+    take: limit,
+  });
+
+  // Filter for unique meals based on description or food items
+  const uniqueMeals = [];
+  const mealFingerprints = new Set();
+
+  for (const meal of meals) {
+    // Create a fingerprint based on description and food items
+    let fingerprint;
+    if (meal.description) {
+      fingerprint = `desc:${meal.description.toLowerCase().trim()}`;
+    } else {
+      // If no description, use sorted food names as fingerprint
+      const foodNames = meal.foodItems
+        .map((fi) => fi.foodName.toLowerCase().trim())
+        .sort()
+        .join("|");
+      fingerprint = `foods:${foodNames}`;
+    }
+
+    if (!mealFingerprints.has(fingerprint)) {
+      mealFingerprints.add(fingerprint);
+      uniqueMeals.push(meal);
+    }
+  }
+
+  return uniqueMeals;
+};
+
 module.exports = {
   createMeal,
   getMealById,
   getMeals,
+  getPreviousMeals,
   getTodaysMeals,
   updateMeal,
   deleteMeal,

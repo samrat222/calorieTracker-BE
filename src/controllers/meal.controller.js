@@ -338,6 +338,23 @@ const quickLogMeal = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Get unique previous meals for the logged-in user
+ * GET /api/meals/previous
+ */
+const getPreviousMeals = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const { limit } = req.query;
+
+  const meals = await mealService.getPreviousMeals(userId, parseInt(limit) || 50);
+
+  return successResponse(res, {
+    statusCode: HTTP_STATUS.OK.code,
+    message: "Previous meals retrieved successfully",
+    data: { meals },
+  });
+});
+
 module.exports = {
   createMeal,
   getMeals,
@@ -347,4 +364,5 @@ module.exports = {
   deleteMeal,
   analyzeFood,
   quickLogMeal,
+  getPreviousMeals,
 };
