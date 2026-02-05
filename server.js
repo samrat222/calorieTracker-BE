@@ -17,7 +17,7 @@ const app = require("./src/app");
 // Self-Ping Configuration (Prevent Render Cooling)
 // ============================================
 const SELF_PING_INTERVAL = 10 * 60 * 1000; // Ping every 10 minutes (below Render's 15-minute idle timeout)
-const SERVER_URL = process.env.SERVER_URL || "https://calorietracker-be.onrender.com";
+const SERVER_URL = process.env.SERVER_URL || "https://calorietracker-be-2.onrender.com";
 
 // Self-ping function to keep the server awake
 function keepServerAwake() {
