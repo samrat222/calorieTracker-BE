@@ -46,9 +46,9 @@ const initializeScheduler = () => {
     timezone: 'Asia/Kolkata'
   });
 
-  // 5. 11:45 AM - Test reminder
-  cron.schedule('45 11 * * *', async () => {
-    console.log('[CRON] Running 11:45 AM Test reminder');
+  // 5. 11:52 AM - Test reminder
+  cron.schedule('52 11 * * *', async () => {
+    console.log('[CRON] Running 11:52 AM Test reminder');
     await sendCalorieReminders('TEST');
   }, {
     timezone: 'Asia/Kolkata'
@@ -120,7 +120,7 @@ const sendCalorieReminders = async (type) => {
           break;
         case 'TEST':
           title = 'Testing System... 🧪';
-          body = `System check at 11:45 AM. Consumed: ${caloriesConsumed} kcal, Remaining: ${remainingCalories} kcal.`;
+          body = `System check at 11:52 AM. Consumed: ${caloriesConsumed} kcal, Remaining: ${remainingCalories} kcal.`;
           break;
       }
 
