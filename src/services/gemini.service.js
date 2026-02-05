@@ -124,7 +124,16 @@ const analyzeImage = async (imageBuffer, mimeType = "image/jpeg") => {
       error: parsed.error || null,
     };
   } catch (error) {
-    console.error("Gemini Image Analysis Error:", error);
+    console.error("Gemini Image Analysis Error:", error.message);
+
+    // 🔄 Handle Rate Limit by Rotating Key and Retrying once
+    if (error.status === 429 || error.message?.includes('quota') || error.message?.includes('429')) {
+      const { rotateKey } = require("../config/gemini");
+      if (rotateKey()) {
+        console.log("♻️ Retrying image analysis with new key...");
+        return analyzeImage(imageBuffer, mimeType);
+      }
+    }
 
     if (error instanceof SyntaxError) {
       return {
@@ -222,7 +231,16 @@ If the description is not food-related or too vague, return:
       error: parsed.error || null,
     };
   } catch (error) {
-    console.error("Gemini Text Analysis Error:", error);
+    console.error("Gemini Text Analysis Error:", error.message);
+
+    // 🔄 Handle Rate Limit by Rotating Key and Retrying once
+    if (error.status === 429 || error.message?.includes('quota') || error.message?.includes('429')) {
+      const { rotateKey } = require("../config/gemini");
+      if (rotateKey()) {
+        console.log("♻️ Retrying text analysis with new key...");
+        return analyzeTextDescription(description);
+      }
+    }
 
     if (error instanceof SyntaxError) {
       return {

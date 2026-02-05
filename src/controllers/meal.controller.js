@@ -253,6 +253,15 @@ const analyzeFood = asyncHandler(async (req, res) => {
   } catch (error) {
     console.error("Food analysis error:", error);
 
+    // Detect Rate Limit/Quota Exceeded
+    if (error.status === 429 || error.message?.includes('quota') || error.message?.includes('429')) {
+      return errorResponse(res, {
+        statusCode: 429,
+        message: "Gemini API daily limit reached. Please log manually or try tomorrow.",
+        code: ERROR_CODES.RATE_LIMIT_EXCEEDED,
+      });
+    }
+
     return errorResponse(res, {
       statusCode: HTTP_STATUS.INTERNAL_SERVER_ERROR.code,
       message: "Failed to analyze food. Please try again.",
