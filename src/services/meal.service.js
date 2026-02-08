@@ -135,10 +135,18 @@ const getMeals = async (userId, options = {}) => {
   if (options.startDate || options.endDate) {
     where.mealDate = {};
     if (options.startDate) {
-      where.mealDate.gte = new Date(options.startDate);
+      const start = new Date(options.startDate);
+      if (!isNaN(start.getTime())) {
+        start.setHours(0, 0, 0, 0);
+        where.mealDate.gte = start;
+      }
     }
     if (options.endDate) {
-      where.mealDate.lte = new Date(options.endDate);
+      const end = new Date(options.endDate);
+      if (!isNaN(end.getTime())) {
+        end.setHours(23, 59, 59, 999);
+        where.mealDate.lte = end;
+      }
     }
   }
 
@@ -470,6 +478,8 @@ const getWeeklyAnalytics = async (userId) => {
     }),
   ]);
 
+  console.log(`[Analytics] Found ${summaries.length} summaries for user ${userId} between ${startOfWeek.toISOString()} and ${endOfWeek.toISOString()}`);
+
   // Use database aggregation instead of reducing in code
   const aggregation = await prisma.dailySummary.aggregate({
     where: {
@@ -496,7 +506,29 @@ const getWeeklyAnalytics = async (userId) => {
     mealsCount: aggregation._sum.mealsCount || 0,
   };
 
-  const daysTracked = summaries.length;
+  // Process summaries to ensure unique dates (in case of timestamp variations)
+  const uniqueSummaries = new Map();
+  summaries.forEach(summary => {
+    const dateStr = summary.date.toISOString().split('T')[0];
+    if (!uniqueSummaries.has(dateStr)) {
+      uniqueSummaries.set(dateStr, summary);
+    } else {
+      // If duplicate exists, merge or take latest (here we just merge calories/counts)
+      const existing = uniqueSummaries.get(dateStr);
+      uniqueSummaries.set(dateStr, {
+        ...existing,
+        totalCalories: Math.max(existing.totalCalories, summary.totalCalories),
+        totalProtein: Math.max(existing.totalProtein, summary.totalProtein),
+        totalCarbs: Math.max(existing.totalCarbs, summary.totalCarbs),
+        totalFats: Math.max(existing.totalFats, summary.totalFats),
+        mealsCount: Math.max(existing.mealsCount, summary.mealsCount),
+      });
+    }
+  });
+
+  const processedSummaries = Array.from(uniqueSummaries.values());
+
+  const daysTracked = processedSummaries.length;
   const avgCalories =
     daysTracked > 0 ? Math.round(weeklyTotals.totalCalories / daysTracked) : 0;
 
@@ -507,7 +539,7 @@ const getWeeklyAnalytics = async (userId) => {
     averageCalories: avgCalories,
     totals: weeklyTotals,
     daysTracked,
-    dailyBreakdown: summaries,
+    dailyBreakdown: processedSummaries,
   };
 };
 

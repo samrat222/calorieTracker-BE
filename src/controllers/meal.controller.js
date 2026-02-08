@@ -22,6 +22,7 @@ const { asyncHandler } = require("../middlewares/error.middleware");
  */
 const createMeal = asyncHandler(async (req, res) => {
   const userId = req.user.id;
+  console.log('Create Meal Payload Received:', req.body);
   const {
     mealType,
     description,
@@ -35,8 +36,9 @@ const createMeal = asyncHandler(async (req, res) => {
   } = req.body;
 
   // Handle image upload if present
-  let imageUrl = null;
+  let imageUrl = (req.body.imageUrl && req.body.imageUrl !== 'null' && req.body.imageUrl !== 'undefined') ? req.body.imageUrl : null;
   const fileInfo = getFileInfo(req);
+  console.log('File Info:', fileInfo);
 
   if (fileInfo) {
     try {

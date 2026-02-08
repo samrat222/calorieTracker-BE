@@ -308,6 +308,16 @@ const updateFcmToken = asyncHandler(async (req, res) => {
     });
   }
 
+  // 1. Clear this token from any other users who might have it (ensure uniqueness)
+  await prisma.user.updateMany({
+    where: {
+      fcmToken: fcmToken,
+      id: { not: userId }
+    },
+    data: { fcmToken: null }
+  });
+
+  // 2. Assign token to current user
   await prisma.user.update({
     where: { id: userId },
     data: { fcmToken },

@@ -31,8 +31,6 @@ const uploadImage = async (buffer, options = {}) => {
       resource_type: 'image',
       // Optimize images for mobile
       transformation: [
-        { width: 800, crop: 'limit' },   // resize down if larger
-        { quality: 40 },                 // aggressive compression
         { fetch_format: 'auto' },        // webp/avif when possible
       ]
 
@@ -85,8 +83,6 @@ const uploadFromPath = async (filePath, options = {}) => {
       folder,
       resource_type: 'image',
       transformation: [
-        { width: 800, crop: 'limit' },   // resize down if larger
-        { quality: 40 },                 // aggressive compression
         { fetch_format: 'auto' },        // webp/avif when possible
       ]
 
@@ -176,9 +172,7 @@ const getThumbnailUrl = (publicId, options = {}) => {
 
   return cloudinary.url(publicId, {
     transformation: [
-      { width: 800, crop: 'limit' },   
-      { quality: 40 },                
-      { fetch_format: 'auto' },     
+      { fetch_format: 'auto' },
     ]
 
   });

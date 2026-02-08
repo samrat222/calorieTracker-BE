@@ -125,6 +125,7 @@ const createMealSchema = z.object({
     }),
   }),
   description: z.string().max(500, 'Description must be less than 500 characters').optional(),
+  imageUrl: z.string().max(1024).optional(),
   totalCalories: z.coerce.number().int().min(0, 'Calories must be non-negative'),
   protein: z.coerce.number().min(0, 'Protein must be non-negative').optional(),
   carbs: z.coerce.number().min(0, 'Carbs must be non-negative').optional(),
@@ -160,6 +161,7 @@ const updateMealSchema = z.object({
     })
     .optional(),
   description: z.string().max(500, 'Description must be less than 500 characters').optional(),
+  imageUrl: z.string().max(1024).optional(),
   totalCalories: z.coerce.number().int().min(0, 'Calories must be non-negative').optional(),
   protein: z.coerce.number().min(0, 'Protein must be non-negative').optional(),
   carbs: z.coerce.number().min(0, 'Carbs must be non-negative').optional(),

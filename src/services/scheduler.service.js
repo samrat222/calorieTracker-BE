@@ -46,14 +46,6 @@ const initializeScheduler = () => {
     timezone: 'Asia/Kolkata'
   });
 
-  // 5. 11:52 AM - Test reminder
-  cron.schedule('52 11 * * *', async () => {
-    console.log('[CRON] Running 11:52 AM Test reminder');
-    await sendCalorieReminders('TEST');
-  }, {
-    timezone: 'Asia/Kolkata'
-  });
-  
 };
 
 /**
@@ -124,7 +116,25 @@ const sendCalorieReminders = async (type) => {
           break;
       }
 
-      // 4. Send notification
+      // 4. Check if this specific reminder was already sent to this user today
+      // This prevents duplicates if the cron runs on multiple instances or restarts
+      const alreadySent = await prisma.notification.findFirst({
+        where: {
+          userId: user.id,
+          title: title,
+          createdAt: {
+            gte: todayStart,
+            lte: todayEnd,
+          }
+        }
+      });
+
+      if (alreadySent) {
+        console.log(`[CRON INFO] Reminder "${title}" already sent to user ${user.id} today. Skipping.`);
+        continue;
+      }
+
+      // 5. Send notification
       await notificationService.createAndSendNotification({
         userId: user.id,
         title,
